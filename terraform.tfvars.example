@@ -7,8 +7,8 @@ domain_name = "lokeshwaffle.in"
 
 # Database Configuration (CHANGE THESE VALUES)
 db_username = "admin"
-db_password = "YourSecurePassword123!"  # Change this to a strong password
+db_password = "Lokesh@2024!"  # Change this to a strong password
 db_name     = "lokeshdb"
 
 # GitHub Repository (format: owner/repo-name)
-github_repo = "your-github-username/your-repo-name"
+github_repo = "pillalokesh/final-project"
