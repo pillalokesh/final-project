@@ -3,7 +3,7 @@ vpc_cidr    = "10.0.0.0/16"
 domain_name = "lokeshwaffle.in"
 
 db_username = "admin"
-db_password = "Lokesh@2024!"
+db_password = "Lokesh2024Strong"
 db_name     = "lokeshdb"
 
 github_repo = "pillalokesh/final-project"
