@@ -1,0 +1,99 @@
+resource "aws_lb" "main" {
+  name               = "lokesh-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb_sg.id]
+  subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+
+  enable_deletion_protection = false
+
+  tags = {
+    Name = "lokesh-alb"
+  }
+}
+
+resource "aws_lb_target_group" "frontend" {
+  name        = "frontend-tg"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.lokesh_vpc.id
+  target_type = "ip"
+
+  health_check {
+    path                = "/"
+    healthy_threshold   = 2
+    unhealthy_threshold = 10
+    timeout             = 60
+    interval            = 120
+    matcher             = "200-399"
+  }
+
+  tags = {
+    Name = "frontend-tg"
+  }
+}
+
+resource "aws_lb_target_group" "backend" {
+  name        = "backend-tg"
+  port        = 3000
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.lokesh_vpc.id
+  target_type = "ip"
+
+  health_check {
+    path                = "/api/health"
+    healthy_threshold   = 2
+    unhealthy_threshold = 10
+    timeout             = 60
+    interval            = 120
+    matcher             = "200-399"
+  }
+
+  tags = {
+    Name = "backend-tg"
+  }
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate.main.arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.frontend.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "backend" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*"]
+    }
+  }
+}

@@ -1,0 +1,86 @@
+# ========================
+# TERRAFORM
+# ========================
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+*.tfvars
+!terraform.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+terraform.plan
+*.tfplan
+
+# ========================
+# AWS CREDENTIALS (NEVER COMMIT)
+# ========================
+.aws/
+credentials
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ========================
+# SECRETS & ENV FILES
+# ========================
+.env
+.env.*
+!.env.example
+*.secret
+secrets.yml
+secrets.yaml
+
+# ========================
+# DOCKER
+# ========================
+.docker/
+
+# ========================
+# NODE / FRONTEND
+# ========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+
+# ========================
+# BUILD OUTPUTS
+# ========================
+dist/
+build/
+out/
+*.zip
+*.tar.gz
+
+# ========================
+# IDE & EDITORS
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.iml
+
+# ========================
+# OS FILES
+# ========================
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ========================
+# LOGS
+# ========================
+*.log
+logs/
