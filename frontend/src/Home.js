@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-function Home({ user, onLoginClick }) {
+function Home({ onSignUp }) {
   const [backendStatus, setBackendStatus] = useState('checking...');
   const [dbStatus, setDbStatus] = useState('checking...');
 
@@ -22,16 +22,12 @@ function Home({ user, onLoginClick }) {
         <div className="hero-content">
           <h1>🧇 Welcome to Lokesh Waffle</h1>
           <p className="hero-subtitle">A Production-Ready AWS 3-Tier Architecture</p>
-          {user ? (
-            <div className="welcome-user">
-              <h2>Hello, {user.name}! 👋</h2>
-              <p>You are successfully logged in.</p>
-            </div>
-          ) : (
-            <button className="hero-btn" onClick={onLoginClick}>
-              Get Started →
-            </button>
-          )}
+          <p className="hero-description">
+            Experience seamless cloud deployment with ECS Fargate, RDS MySQL, and Application Load Balancer
+          </p>
+          <button className="hero-btn" onClick={onSignUp}>
+            Get Started - Sign Up Free →
+          </button>
         </div>
       </div>
 

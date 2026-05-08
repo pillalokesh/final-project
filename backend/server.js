@@ -16,12 +16,9 @@ const db = mysql.createPool({
   connectionLimit: 10
 });
 
-// Initialize DB table and demo user
+// Initialize DB table
 db.getConnection((err, connection) => {
-  if (err) {
-    console.log('DB connection error:', err.message);
-    return;
-  }
+  if (err) { console.log('DB connection error:', err.message); return; }
   connection.query(`
     CREATE TABLE IF NOT EXISTS users (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -31,18 +28,13 @@ db.getConnection((err, connection) => {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `, (err) => {
-    if (err) console.log('Table creation error:', err.message);
-  });
-
-  const demoPassword = crypto.createHash('sha256').update('admin123').digest('hex');
-  connection.query(`
-    INSERT IGNORE INTO users (name, email, password) VALUES (?, ?, ?)
-  `, ['Admin User', 'admin@lokesh.com', demoPassword], (err) => {
-    if (err) console.log('Demo user error:', err.message);
-    else console.log('Demo user ready');
+    if (err) console.log('Table error:', err.message);
+    else console.log('Users table ready');
     connection.release();
   });
 });
+
+const hashPassword = (password) => crypto.createHash('sha256').update(password).digest('hex');
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -57,28 +49,47 @@ app.get('/api/db-health', (req, res) => {
   });
 });
 
-// Login
-app.post('/api/login', (req, res) => {
+// Sign Up
+app.post('/api/signup', (req, res) => {
+  const { name, email, password } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  db.query('SELECT id FROM users WHERE email = ?', [email], (err, results) => {
+    if (err) return res.status(500).json({ message: 'Server error' });
+    if (results.length > 0) return res.status(409).json({ message: 'Email already registered' });
+
+    db.query(
+      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
+      [name, email, hashPassword(password)],
+      (err, result) => {
+        if (err) return res.status(500).json({ message: 'Server error' });
+        res.status(201).json({ message: 'Account created successfully' });
+      }
+    );
+  });
+});
+
+// Sign In
+app.post('/api/signin', (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
   }
 
-  const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-
   db.query(
     'SELECT id, name, email FROM users WHERE email = ? AND password = ?',
-    [email, hashedPassword],
+    [email, hashPassword(password)],
     (err, results) => {
       if (err) return res.status(500).json({ message: 'Server error' });
       if (results.length === 0) return res.status(401).json({ message: 'Invalid email or password' });
-      res.status(200).json({ message: 'Login successful', user: results[0] });
+      res.status(200).json({ message: 'Sign in successful', user: results[0] });
     }
   );
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
