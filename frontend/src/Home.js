@@ -72,7 +72,7 @@ function Home({ user, onLoginClick }) {
       </div>
 
       <footer className="footer">
-        <p>© 2024 Lokesh Waffle | Built with AWS 3-Tier Architecture</p>
+        <p>© 2025 Lokesh Waffle | Built with AWS 3-Tier Architecture</p>
       </footer>
     </div>
   );
