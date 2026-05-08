@@ -1,0 +1,13 @@
+{
+  "Changes": [{
+    "Action": "CREATE",
+    "ResourceRecordSet": {
+      "Name": "_907392c63e0788babfa146d2e671d5a0.lokeshwaffle.in.",
+      "Type": "CNAME",
+      "TTL": 300,
+      "ResourceRecords": [{
+        "Value": "_39e7d818d9829b2a421f646663bc9eff.jkddzztszm.acm-validations.aws."
+      }]
+    }
+  }]
+}
