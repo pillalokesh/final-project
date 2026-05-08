@@ -1,23 +1,43 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import Home from './Home';
+import Login from './Login';
 import './App.css';
 
 function App() {
-  const [health, setHealth] = useState(null);
+  const [page, setPage] = useState('home');
+  const [user, setUser] = useState(null);
 
-  useEffect(() => {
-    fetch('/api/health')
-      .then(res => res.json())
-      .then(data => setHealth(data.status))
-      .catch(() => setHealth('unreachable'));
-  }, []);
+  const handleLogin = (userData) => {
+    setUser(userData);
+    setPage('home');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setPage('home');
+  };
 
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>🧇 Lokesh Waffle</h1>
-        <p>Welcome to Lokesh Waffle!</p>
-        <p>Backend Status: <strong>{health || 'checking...'}</strong></p>
-      </header>
+      <nav className="navbar">
+        <div className="nav-brand" onClick={() => setPage('home')}>
+          🧇 Lokesh Waffle
+        </div>
+        <div className="nav-links">
+          <button className="nav-btn" onClick={() => setPage('home')}>Home</button>
+          {user ? (
+            <>
+              <span className="nav-user">👋 {user.name}</span>
+              <button className="nav-btn logout" onClick={handleLogout}>Logout</button>
+            </>
+          ) : (
+            <button className="nav-btn login" onClick={() => setPage('login')}>Login</button>
+          )}
+        </div>
+      </nav>
+
+      {page === 'home' && <Home user={user} onLoginClick={() => setPage('login')} />}
+      {page === 'login' && <Login onLogin={handleLogin} onBack={() => setPage('home')} />}
     </div>
   );
 }
