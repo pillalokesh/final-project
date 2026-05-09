@@ -1,95 +1,116 @@
+require('dotenv').config();
 const express = require('express');
-const mysql = require('mysql2');
+const http = require('http');
 const cors = require('cors');
-const crypto = require('crypto');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const compression = require('compression');
+const cookieParser = require('cookie-parser');
+const mongoSanitize = require('express-mongo-sanitize');
+const hpp = require('hpp');
+const rateLimit = require('express-rate-limit');
+
+const connectDB = require('./config/database');
+const connectRedis = require('./config/redis');
+const { initSocket } = require('./config/socket');
+const logger = require('./config/logger');
+const errorHandler = require('./middleware/errorHandler');
+
+// Routes
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
+const dashboardRoutes = require('./routes/dashboard');
+const kubernetesRoutes = require('./routes/kubernetes');
+const dockerRoutes = require('./routes/docker');
+const cicdRoutes = require('./routes/cicd');
+const monitoringRoutes = require('./routes/monitoring');
+const notificationRoutes = require('./routes/notifications');
+const aiRoutes = require('./routes/ai');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const server = http.createServer(app);
 
-const db = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10
+// Init Socket.io
+initSocket(server);
+
+// Connect DB & Redis
+connectDB();
+connectRedis();
+
+// Security Middleware
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(mongoSanitize());
+app.use(hpp());
+
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: { success: false, message: 'Too many requests, please try again later.' }
+});
+app.use('/api/', limiter);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, message: 'Too many auth attempts, please try again later.' }
 });
 
-// Initialize DB table
-db.getConnection((err, connection) => {
-  if (err) { console.log('DB connection error:', err.message); return; }
-  connection.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      email VARCHAR(100) UNIQUE NOT NULL,
-      password VARCHAR(64) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `, (err) => {
-    if (err) console.log('Table error:', err.message);
-    else console.log('Users table ready');
-    connection.release();
-  });
-});
+// CORS
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
-const hashPassword = (password) => crypto.createHash('sha256').update(password).digest('hex');
+// Body Parsing
+app.use(compression());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 
-// Health check
+// Logging
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('combined', { stream: { write: msg => logger.info(msg.trim()) } }));
+}
+
+// Health Check
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Backend is healthy' });
-});
-
-// DB health check
-app.get('/api/db-health', (req, res) => {
-  db.query('SELECT 1', (err) => {
-    if (err) return res.status(500).json({ status: 'error', message: 'DB connection failed' });
-    res.status(200).json({ status: 'ok', message: 'DB connected' });
+  res.json({
+    success: true,
+    status: 'ok',
+    message: 'CloudPulse API is running',
+    version: '2.0.0',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// Sign Up
-app.post('/api/signup', (req, res) => {
-  const { name, email, password } = req.body;
+// API Routes
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/kubernetes', kubernetesRoutes);
+app.use('/api/docker', dockerRoutes);
+app.use('/api/cicd', cicdRoutes);
+app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/settings', settingsRoutes);
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: 'All fields are required' });
-  }
-
-  db.query('SELECT id FROM users WHERE email = ?', [email], (err, results) => {
-    if (err) return res.status(500).json({ message: 'Server error' });
-    if (results.length > 0) return res.status(409).json({ message: 'Email already registered' });
-
-    db.query(
-      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-      [name, email, hashPassword(password)],
-      (err, result) => {
-        if (err) return res.status(500).json({ message: 'Server error' });
-        res.status(201).json({ message: 'Account created successfully' });
-      }
-    );
-  });
+// 404 Handler
+app.use('*', (req, res) => {
+  res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
 });
 
-// Sign In
-app.post('/api/signin', (req, res) => {
-  const { email, password } = req.body;
+// Global Error Handler
+app.use(errorHandler);
 
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Email and password are required' });
-  }
-
-  db.query(
-    'SELECT id, name, email FROM users WHERE email = ? AND password = ?',
-    [email, hashPassword(password)],
-    (err, results) => {
-      if (err) return res.status(500).json({ message: 'Server error' });
-      if (results.length === 0) return res.status(401).json({ message: 'Invalid email or password' });
-      res.status(200).json({ message: 'Sign in successful', user: results[0] });
-    }
-  );
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  logger.info(`🚀 CloudPulse Backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+module.exports = { app, server };
