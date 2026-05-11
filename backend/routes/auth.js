@@ -22,8 +22,8 @@ const sendToken = (user, statusCode, res) => {
   res.status(statusCode).json({ success: true, token, user });
 };
 
-// POST /api/auth/signup
-router.post('/signup', async (req, res) => {
+// POST /api/auth/signup OR /api/signup
+router.post(['/signup', '/auth/signup'], async (req, res) => {
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
@@ -56,8 +56,8 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// POST /api/auth/login
-router.post('/login', async (req, res) => {
+// POST /api/auth/login OR /api/signin OR /api/login
+router.post(['/login', '/auth/login', '/signin'], async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {

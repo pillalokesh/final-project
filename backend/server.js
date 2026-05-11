@@ -61,6 +61,10 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/contact', require('./routes/contact'));
 app.use('/api/orders', require('./routes/orders'));
 
+// Backward compatible shortcuts
+const authRouter = require('./routes/auth');
+app.use('/api', authRouter);
+
 // 404
 app.use('*', (req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
