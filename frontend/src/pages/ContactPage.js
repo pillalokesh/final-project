@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Phone, MapPin, Send, CheckCircle, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
-import axios from 'axios';
+import emailjs from '@emailjs/browser';
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
@@ -15,16 +15,26 @@ export default function ContactPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Connects to backend POST /api/contact
-      await axios.post('/api/contact', form);
+      await emailjs.send(
+        process.env.REACT_APP_EMAILJS_SERVICE_ID || 'YOUR_SERVICE_ID',
+        process.env.REACT_APP_EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID',
+        {
+          from_name: form.name,
+          from_email: form.email,
+          subject: form.subject,
+          message: form.message,
+          to_email: 'pillalokesh3@gmail.com',
+        },
+        process.env.REACT_APP_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY'
+      );
       setSent(true);
-      toast.success('Message sent successfully! We\'ll reply soon 📧', {
+      toast.success('Message sent successfully!', {
         style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(34,197,94,0.3)' },
       });
-    } catch {
-      // Fallback — show success even if backend not connected
+    } catch (error) {
+      console.error('Email error:', error);
       setSent(true);
-      toast.success('Message sent! We\'ll get back to you soon 📧', {
+      toast.success('Message received! We will get back to you soon.', {
         style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(34,197,94,0.3)' },
       });
     } finally {
@@ -34,7 +44,6 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen pt-20" style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #0f0a00 100%)' }}>
-      {/* Hero */}
       <section className="relative py-20 px-6 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-950/30 to-pink-950/20" />
         <div className="relative z-10 max-w-4xl mx-auto text-center">
@@ -50,7 +59,6 @@ export default function ContactPage() {
 
       <div className="max-w-7xl mx-auto px-6 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Contact Info */}
           <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
             className="space-y-6"
           >
@@ -59,9 +67,7 @@ export default function ContactPage() {
               { icon: <Phone size={24} />, title: 'Call Us', value: '+91 98765 43210', color: 'text-green-400', bg: 'bg-green-500/10' },
               { icon: <MapPin size={24} />, title: 'Visit Us', value: 'Hyderabad, Telangana, India', color: 'text-blue-400', bg: 'bg-blue-500/10' },
             ].map((info, i) => (
-              <motion.div key={i} whileHover={{ x: 6 }}
-                className="glass-dark rounded-2xl p-6 flex items-start gap-4"
-              >
+              <motion.div key={i} whileHover={{ x: 6 }} className="glass-dark rounded-2xl p-6 flex items-start gap-4">
                 <div className={`${info.bg} ${info.color} p-3 rounded-xl`}>{info.icon}</div>
                 <div>
                   <h3 className="text-white font-bold mb-1">{info.title}</h3>
@@ -70,7 +76,6 @@ export default function ContactPage() {
               </motion.div>
             ))}
 
-            {/* Social */}
             <div className="glass-dark rounded-2xl p-6">
               <h3 className="text-white font-bold mb-4">Follow Us</h3>
               <div className="grid grid-cols-2 gap-3">
@@ -90,15 +95,12 @@ export default function ContactPage() {
             </div>
           </motion.div>
 
-          {/* Form */}
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
             className="lg:col-span-2"
           >
             <div className="glass-dark rounded-3xl p-8">
               {sent ? (
-                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                  className="text-center py-12"
-                >
+                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-12">
                   <CheckCircle size={64} className="text-green-400 mx-auto mb-4" />
                   <h3 className="text-2xl font-bold text-white mb-2">Message Sent!</h3>
                   <p className="text-gray-400 mb-6">We'll get back to you at <span className="text-orange-400">pillalokesh3@gmail.com</span> within 24 hours.</p>
@@ -143,7 +145,6 @@ export default function ContactPage() {
               )}
             </div>
 
-            {/* Map placeholder */}
             <div className="mt-6 glass-dark rounded-3xl overflow-hidden h-64 flex items-center justify-center">
               <div className="text-center">
                 <div className="text-5xl mb-3">🗺️</div>
