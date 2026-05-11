@@ -105,7 +105,7 @@ resource "aws_iam_policy" "github_actions_policy" {
         Resource = "*"
       },
       {
-        Sid    = "ECRPush"
+        Sid    = "ECRPushPull"
         Effect = "Allow"
         Action = [
           "ecr:BatchCheckLayerAvailability",
@@ -113,7 +113,11 @@ resource "aws_iam_policy" "github_actions_policy" {
           "ecr:UploadLayerPart",
           "ecr:InitiateLayerUpload",
           "ecr:PutImage",
-          "ecr:BatchGetImage"
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:DescribeImages",
+          "ecr:DescribeRepositories",
+          "ecr:ListImages"
         ]
         Resource = [
           aws_ecr_repository.frontend.arn,
