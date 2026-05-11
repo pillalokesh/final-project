@@ -1,5 +1,5 @@
 scan:
-  security-checks:
+  scanners:
     - vuln
     - secret
     - misconfig
@@ -11,6 +11,3 @@ severity:
 ignore-unfixed: true
 
 exit-code: 0
-
-# Ignore specific CVEs if needed
-# ignorefile: .trivyignore

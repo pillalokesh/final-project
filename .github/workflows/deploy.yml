@@ -204,8 +204,15 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # Pull images first so Trivy can scan locally
+      - name: Pull frontend image
+        run: docker pull ${{ needs.build.outputs.frontend-image }}
+
+      - name: Pull backend image
+        run: docker pull ${{ needs.build.outputs.backend-image }}
+
       # Scan filesystem for secrets and misconfigs
-      - name: Trivy — Filesystem Scan (secrets + misconfigs)
+      - name: Trivy — Filesystem Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -214,6 +221,7 @@ jobs:
           format: 'table'
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
+          trivy-config: ''
 
       # Scan frontend Docker image
       - name: Trivy — Frontend Image Scan
@@ -226,6 +234,7 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
+          trivy-config: ''
 
       # Scan backend Docker image
       - name: Trivy — Backend Image Scan
@@ -238,8 +247,9 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
+          trivy-config: ''
 
-      # Trivy table report for logs
+      # Table report for logs
       - name: Trivy — Backend Image Report (table)
         uses: aquasecurity/trivy-action@master
         with:
@@ -249,6 +259,7 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
+          trivy-config: ''
 
       # Upload SARIF to GitHub Security tab
       - name: Upload Trivy Frontend SARIF
@@ -265,7 +276,6 @@ jobs:
           category: 'trivy-backend'
         continue-on-error: true
 
-      # Save reports as artifacts
       - name: Upload Trivy Reports
         uses: actions/upload-artifact@v4
         with:
