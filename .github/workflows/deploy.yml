@@ -1,9 +1,10 @@
-name: Deploy to ECS
+name: CI/CD Pipeline — Amrutha Juice
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 env:
   AWS_REGION: ap-south-1
@@ -18,11 +19,126 @@ env:
 permissions:
   id-token: write
   contents: read
+  security-events: write   # for uploading SARIF results
 
 jobs:
-  deploy:
-    name: Build and Deploy
+
+  # ─────────────────────────────────────────
+  # JOB 1 — CODE QUALITY (SonarQube)
+  # ─────────────────────────────────────────
+  sonarqube:
+    name: 🔍 SonarQube Code Analysis
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for better analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Run frontend tests with coverage
+        run: |
+          cd frontend
+          npm test -- --coverage --watchAll=false --passWithNoTests \
+            --coverageReporters=lcov --coverageDirectory=coverage
+        continue-on-error: true
+
+      - name: SonarQube Scan — Frontend
+        uses: SonarSource/sonarqube-scan-action@master
+        with:
+          projectBaseDir: frontend
+          args: >
+            -Dsonar.projectKey=amrutha-juice-frontend
+            -Dsonar.projectName="Amrutha Juice Frontend"
+            -Dsonar.sources=src
+            -Dsonar.exclusions=**/node_modules/**,**/build/**,**/*.test.js
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.qualitygate.wait=true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true
+
+      - name: SonarQube Scan — Backend
+        uses: SonarSource/sonarqube-scan-action@master
+        with:
+          projectBaseDir: backend
+          args: >
+            -Dsonar.projectKey=amrutha-juice-backend
+            -Dsonar.projectName="Amrutha Juice Backend"
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/node_modules/**,**/*.test.js
+            -Dsonar.qualitygate.wait=true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true
+
+  # ─────────────────────────────────────────
+  # JOB 2 — DEPENDENCY SECURITY SCAN
+  # ─────────────────────────────────────────
+  dependency-scan:
+    name: 🔐 Dependency Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Frontend — npm audit
+        run: |
+          cd frontend
+          npm install
+          echo "====== FRONTEND DEPENDENCY AUDIT ======"
+          npm audit --audit-level=high --json > npm-audit-frontend.json || true
+          npm audit --audit-level=high || true
+
+      - name: Backend — npm audit
+        run: |
+          cd backend
+          npm install
+          echo "====== BACKEND DEPENDENCY AUDIT ======"
+          npm audit --audit-level=high --json > npm-audit-backend.json || true
+          npm audit --audit-level=high || true
+
+      - name: Upload audit reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-reports
+          path: |
+            frontend/npm-audit-frontend.json
+            backend/npm-audit-backend.json
+          retention-days: 30
+
+  # ─────────────────────────────────────────
+  # JOB 3 — BUILD DOCKER IMAGES
+  # ─────────────────────────────────────────
+  build:
+    name: 🐳 Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [dependency-scan]
+    outputs:
+      frontend-image: ${{ steps.build-frontend.outputs.image }}
+      backend-image: ${{ steps.build-backend.outputs.image }}
+      ecr-registry: ${{ steps.login-ecr.outputs.registry }}
 
     steps:
       - name: Checkout code
@@ -33,7 +149,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: GitHubActionsSession
-          aws-region: ap-south-1
+          aws-region: ${{ env.AWS_REGION }}
           audience: sts.amazonaws.com
 
       - name: Login to Amazon ECR
@@ -47,7 +163,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_FRONTEND_REPO:$IMAGE_TAG ./frontend
-          docker build -t $ECR_REGISTRY/$ECR_FRONTEND_REPO:latest ./frontend
+          docker tag $ECR_REGISTRY/$ECR_FRONTEND_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_FRONTEND_REPO:latest
           docker push $ECR_REGISTRY/$ECR_FRONTEND_REPO:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_FRONTEND_REPO:latest
           echo "image=$ECR_REGISTRY/$ECR_FRONTEND_REPO:$IMAGE_TAG" >> $GITHUB_OUTPUT
@@ -59,10 +175,139 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_BACKEND_REPO:$IMAGE_TAG ./backend
-          docker build -t $ECR_REGISTRY/$ECR_BACKEND_REPO:latest ./backend
+          docker tag $ECR_REGISTRY/$ECR_BACKEND_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_BACKEND_REPO:latest
           docker push $ECR_REGISTRY/$ECR_BACKEND_REPO:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_BACKEND_REPO:latest
           echo "image=$ECR_REGISTRY/$ECR_BACKEND_REPO:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # ─────────────────────────────────────────
+  # JOB 4 — TRIVY SECURITY SCAN
+  # ─────────────────────────────────────────
+  trivy-scan:
+    name: 🛡️ Trivy Security Scan
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GitHubActionsSession
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Scan filesystem for secrets and misconfigs
+      - name: Trivy — Filesystem Scan (secrets + misconfigs)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          scanners: 'secret,misconfig'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+      # Scan frontend Docker image
+      - name: Trivy — Frontend Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: ${{ needs.build.outputs.frontend-image }}
+          format: 'sarif'
+          output: 'trivy-frontend.sarif'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      # Scan backend Docker image
+      - name: Trivy — Backend Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: ${{ needs.build.outputs.backend-image }}
+          format: 'sarif'
+          output: 'trivy-backend.sarif'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      # Trivy table report for logs
+      - name: Trivy — Backend Image Report (table)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: ${{ needs.build.outputs.backend-image }}
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      # Upload SARIF to GitHub Security tab
+      - name: Upload Trivy Frontend SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-frontend.sarif'
+          category: 'trivy-frontend'
+        continue-on-error: true
+
+      - name: Upload Trivy Backend SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-backend.sarif'
+          category: 'trivy-backend'
+        continue-on-error: true
+
+      # Save reports as artifacts
+      - name: Upload Trivy Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-scan-reports
+          path: |
+            trivy-frontend.sarif
+            trivy-backend.sarif
+          retention-days: 30
+
+  # ─────────────────────────────────────────
+  # JOB 5 — DEPLOY TO AWS ECS
+  # ─────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy to AWS ECS
+    runs-on: ubuntu-latest
+    needs: [sonarqube, trivy-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GitHubActionsSession
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tags
+        id: image-tags
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "frontend=$ECR_REGISTRY/$ECR_FRONTEND_REPO:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "backend=$ECR_REGISTRY/$ECR_BACKEND_REPO:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Download frontend task definition
         run: |
@@ -76,13 +321,36 @@ jobs:
             --task-definition lokesh-backend \
             --query taskDefinition > backend-task-def.json
 
+      - name: Inject backend environment variables
+        run: |
+          cat backend-task-def.json | python3 -c "
+          import json, sys
+          td = json.load(sys.stdin)
+          updates = {
+            'PORT': '5000',
+            'NODE_ENV': 'production',
+            'MONGO_URI': '${{ secrets.MONGO_URI }}',
+            'JWT_SECRET': '${{ secrets.JWT_SECRET }}',
+            'CLIENT_URL': 'https://lokeshwaffle.in',
+            'SMTP_USER': '${{ secrets.SMTP_USER }}',
+            'SMTP_PASS': '${{ secrets.SMTP_PASS }}',
+            'FROM_EMAIL': '${{ secrets.SMTP_USER }}'
+          }
+          env = td['containerDefinitions'][0].get('environment', [])
+          env = [e for e in env if e['name'] not in updates]
+          env += [{'name': k, 'value': v} for k, v in updates.items()]
+          td['containerDefinitions'][0]['environment'] = env
+          print(json.dumps(td))
+          " > backend-task-def-updated.json
+          mv backend-task-def-updated.json backend-task-def.json
+
       - name: Update frontend task definition with new image
         id: frontend-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: frontend-task-def.json
           container-name: ${{ env.FRONTEND_CONTAINER }}
-          image: ${{ steps.build-frontend.outputs.image }}
+          image: ${{ steps.image-tags.outputs.frontend }}
 
       - name: Update backend task definition with new image
         id: backend-task-def
@@ -90,7 +358,7 @@ jobs:
         with:
           task-definition: backend-task-def.json
           container-name: ${{ env.BACKEND_CONTAINER }}
-          image: ${{ steps.build-backend.outputs.image }}
+          image: ${{ steps.image-tags.outputs.backend }}
 
       - name: Deploy frontend to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -107,3 +375,16 @@ jobs:
           service: ${{ env.BACKEND_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: false
+
+      - name: ✅ Deployment Summary
+        run: |
+          echo "================================================"
+          echo "  ✅ AMRUTHA JUICE — DEPLOYMENT COMPLETE!"
+          echo "================================================"
+          echo "  🌐 Website  : https://lokeshwaffle.in"
+          echo "  🔧 API      : https://lokeshwaffle.in/api/health"
+          echo "  📦 Frontend : ${{ steps.image-tags.outputs.frontend }}"
+          echo "  📦 Backend  : ${{ steps.image-tags.outputs.backend }}"
+          echo "  🔍 SonarQube: ${{ secrets.SONAR_HOST_URL }}"
+          echo "  🛡️  Trivy   : GitHub Security tab"
+          echo "================================================"

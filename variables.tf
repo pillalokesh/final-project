@@ -51,3 +51,30 @@ variable "backend_image" {
   type        = string
   default     = "node:18-alpine"
 }
+
+variable "mongo_uri" {
+  description = "MongoDB Atlas connection URI"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "jwt_secret" {
+  description = "JWT secret key"
+  type        = string
+  sensitive   = true
+  default     = "amrutha_juice_secret_2025"
+}
+
+variable "smtp_user" {
+  description = "Gmail SMTP user email"
+  type        = string
+  default     = "pillalokesh3@gmail.com"
+}
+
+variable "smtp_pass" {
+  description = "Gmail App Password"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

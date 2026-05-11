@@ -1,53 +1,56 @@
 import React, { useState } from 'react';
-import Home from './Home';
-import SignUp from './SignUp';
-import SignIn from './SignIn';
-import Dashboard from './Dashboard';
-import './App.css';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { CartProvider, AuthProvider, useAuth } from './context/AppContext';
+import Navbar from './components/Navbar';
+import LandingPage from './pages/LandingPage';
+import HomePage from './pages/HomePage';
+import MenuPage from './pages/MenuPage';
+import CategoryPage from './pages/CategoryPage';
+import JuiceDetailPage from './pages/JuiceDetailPage';
+import CartPage from './pages/CartPage';
+import WishlistPage from './pages/WishlistPage';
+import ContactPage from './pages/ContactPage';
+import ProfilePage from './pages/ProfilePage';
+import OffersPage from './pages/OffersPage';
 
-function App() {
-  const [page, setPage] = useState('home');
-  const [user, setUser] = useState(null);
+function ProtectedRoute({ children }) {
+  const { user } = useAuth();
+  return user ? children : <Navigate to="/" replace />;
+}
 
-  const handleSignUp = () => {
-    setPage('signin');
-  };
-
-  const handleSignIn = (userData) => {
-    setUser(userData);
-    setPage('dashboard');
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setPage('home');
-  };
-
+function AppRoutes({ darkMode, setDarkMode }) {
+  const { user } = useAuth();
   return (
-    <div className="App">
-      {page !== 'dashboard' && (
-        <nav className="navbar">
-          <div className="nav-brand" onClick={() => setPage('home')}>
-            🧇 Lokesh Waffle
-          </div>
-          <div className="nav-links">
-            <button className="nav-btn" onClick={() => setPage('home')}>Home</button>
-            {!user && (
-              <>
-                <button className="nav-btn" onClick={() => setPage('signin')}>Sign In</button>
-                <button className="nav-btn signup" onClick={() => setPage('signup')}>Sign Up</button>
-              </>
-            )}
-          </div>
-        </nav>
-      )}
-
-      {page === 'home' && <Home onSignUp={() => setPage('signup')} />}
-      {page === 'signup' && <SignUp onSuccess={handleSignUp} onBack={() => setPage('home')} />}
-      {page === 'signin' && <SignIn onSuccess={handleSignIn} onBack={() => setPage('home')} />}
-      {page === 'dashboard' && <Dashboard user={user} onLogout={handleLogout} />}
+    <div className={darkMode ? 'dark' : ''}>
+      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      {user && <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />}
+      <Routes>
+        <Route path="/" element={user ? <Navigate to="/home" replace /> : <LandingPage />} />
+        <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+        <Route path="/menu" element={<ProtectedRoute><MenuPage /></ProtectedRoute>} />
+        <Route path="/category/:id" element={<ProtectedRoute><CategoryPage /></ProtectedRoute>} />
+        <Route path="/juice/:id" element={<ProtectedRoute><JuiceDetailPage /></ProtectedRoute>} />
+        <Route path="/cart" element={<ProtectedRoute><CartPage /></ProtectedRoute>} />
+        <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
+        <Route path="/contact" element={<ProtectedRoute><ContactPage /></ProtectedRoute>} />
+        <Route path="/offers" element={<ProtectedRoute><OffersPage /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  const [darkMode, setDarkMode] = useState(true);
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <CartProvider>
+          <AppRoutes darkMode={darkMode} setDarkMode={setDarkMode} />
+        </CartProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}

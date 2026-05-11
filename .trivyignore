@@ -1,0 +1,4 @@
+# .trivyignore
+# Add CVE IDs here to ignore known false positives
+# Example:
+# CVE-2023-XXXXX

@@ -35,7 +35,7 @@ resource "aws_lb_target_group" "frontend" {
 
 resource "aws_lb_target_group" "backend" {
   name        = "backend-tg"
-  port        = 3000
+  port        = 5000
   protocol    = "HTTP"
   vpc_id      = aws_vpc.lokesh_vpc.id
   target_type = "ip"

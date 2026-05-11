@@ -1,81 +1,86 @@
-# GitHub Actions OIDC IAM Role Setup
+# GitHub Actions Setup Guide — Amrutha Juice
 
-## Step 1: Create OIDC Provider
+## Step 1 — GitHub Secrets Set Cheyyali
 
-```bash
-aws iam create-open-id-connect-provider \
-  --url https://token.actions.githubusercontent.com \
-  --client-id-list sts.amazonaws.com \
-  --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
-```
+GitHub Repo → Settings → Secrets and variables → Actions → New repository secret
 
-## Step 2: Create IAM Role
+Add these secrets ONE BY ONE:
 
-Save this as `github-actions-trust-policy.json`:
+| Secret Name     | Value                                          |
+|-----------------|------------------------------------------------|
+| AWS_ROLE_ARN    | arn:aws:iam::<account-id>:role/lokesh-github-actions-role |
+| MONGO_URI       | mongodb+srv://<user>:<pass>@cluster.mongodb.net/amrutha-juice |
+| JWT_SECRET      | amrutha_juice_super_secret_2025                |
+| SMTP_USER       | pillalokesh3@gmail.com                         |
+| SMTP_PASS       | <your_gmail_app_password>                      |
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_USERNAME/YOUR_REPO_NAME:*"
-        }
-      }
-    }
-  ]
-}
-```
+---
 
-Create the role:
+## Step 2 — MongoDB Atlas Setup (Free)
 
-```bash
-aws iam create-role \
-  --role-name GitHubActionsECSDeployRole \
-  --assume-role-policy-document file://github-actions-trust-policy.json
-```
+1. Go to https://cloud.mongodb.com
+2. Create free cluster
+3. Database Access → Add user → username + password
+4. Network Access → Add IP → 0.0.0.0/0 (allow all)
+5. Connect → Drivers → Copy connection string
+6. Replace <password> with your password
+7. Add as MONGO_URI secret in GitHub
 
-## Step 3: Attach Policies
+---
 
-```bash
-aws iam attach-role-policy \
-  --role-name GitHubActionsECSDeployRole \
-  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+## Step 3 — Gmail App Password
 
-aws iam attach-role-policy \
-  --role-name GitHubActionsECSDeployRole \
-  --policy-arn arn:aws:iam::aws:policy/AmazonECS_FullAccess
-```
+1. Go to https://myaccount.google.com/security
+2. Enable 2-Step Verification
+3. Search "App passwords"
+4. Select app: Mail → Generate
+5. Copy 16-digit password
+6. Add as SMTP_PASS secret in GitHub
 
-## Step 4: Get Role ARN
+---
 
-```bash
-aws iam get-role --role-name GitHubActionsECSDeployRole --query 'Role.Arn' --output text
-```
+## Step 4 — Push to GitHub
 
-## Step 5: Add to GitHub Secrets
-
-1. Go to your GitHub repository
-2. Settings → Secrets and variables → Actions
-3. New repository secret
-4. Name: `AWS_ROLE_ARN`
-5. Value: (paste the ARN from step 4)
-
-## Verification
-
-Test the workflow by pushing to main branch:
-
-```bash
 git add .
-git commit -m "Test CI/CD pipeline"
+git commit -m "feat: Amrutha Juice complete platform"
 git push origin main
-```
+
+---
+
+## Step 5 — Watch Deploy
+
+GitHub → Actions tab → Watch pipeline run
+
+Steps:
+✅ Checkout code
+✅ Configure AWS credentials
+✅ Login to ECR
+✅ Build & push frontend image
+✅ Build & push backend image
+✅ Inject env vars
+✅ Update task definitions
+✅ Deploy frontend to ECS
+✅ Deploy backend to ECS
+✅ Deployment Summary
+
+---
+
+## Step 6 — Verify Live
+
+https://lokeshwaffle.in          → Frontend (Amrutha Juice)
+https://lokeshwaffle.in/api/health → Backend health check
+
+---
+
+## Troubleshooting
+
+### ECS Task Failing?
+AWS Console → ECS → lokesh-cluster → lokesh-backend-service → Tasks → Stopped reason
+
+### Common Issues:
+- MONGO_URI wrong → Check Atlas connection string
+- Port mismatch → Backend runs on 5000 (already fixed)
+- Image not found → ECR push must complete first
+
+### Check Logs:
+AWS Console → CloudWatch → Log groups → /ecs/lokesh

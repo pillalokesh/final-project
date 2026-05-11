@@ -14,26 +14,42 @@ resource "aws_ecs_task_definition" "backend" {
       essential = true
       portMappings = [
         {
-          containerPort = 3000
+          containerPort = 5000
           protocol      = "tcp"
         }
       ]
       environment = [
         {
-          name  = "DB_HOST"
-          value = aws_db_instance.main.address
+          name  = "PORT"
+          value = "5000"
         },
         {
-          name  = "DB_USER"
-          value = var.db_username
+          name  = "NODE_ENV"
+          value = "production"
         },
         {
-          name  = "DB_PASSWORD"
-          value = var.db_password
+          name  = "MONGO_URI"
+          value = var.mongo_uri
         },
         {
-          name  = "DB_NAME"
-          value = var.db_name
+          name  = "JWT_SECRET"
+          value = var.jwt_secret
+        },
+        {
+          name  = "CLIENT_URL"
+          value = "https://${var.domain_name}"
+        },
+        {
+          name  = "SMTP_USER"
+          value = var.smtp_user
+        },
+        {
+          name  = "SMTP_PASS"
+          value = var.smtp_pass
+        },
+        {
+          name  = "FROM_EMAIL"
+          value = var.smtp_user
         }
       ]
       logConfiguration = {

@@ -1,266 +1,348 @@
-# Lokesh Waffle - AWS 3-Tier Architecture
+# 🥤 Amrutha Juice — Premium Juice Delivery Platform
 
-Production-ready 3-tier architecture on AWS using Terraform for **lokeshwaffle.in**
+Modern, animated, full-stack juice delivery web application built with React, Node.js, MongoDB, and deployed on AWS.
 
-## Architecture Overview
+---
 
-### Infrastructure Components
+## 🚀 Features
 
-**VPC & Networking:**
-- Custom VPC (10.0.0.0/16) in ap-south-1
-- 2 Public Subnets (10.0.1.0/24, 10.0.2.0/24)
-- 2 Private Subnets (10.0.3.0/24, 10.0.4.0/24)
-- Internet Gateway + NAT Gateway
-- Multi-AZ deployment across 2 availability zones
+### Frontend
+- **Beautiful Landing Page** with animated login/signup
+- **Dynamic Homepage** with hero banners, categories, offers, testimonials
+- **12 Category Pages** — each with unique design and animations
+- **Juice Detail Pages** with size/sugar/ice customization
+- **Cart & Order System** with animated checkout
+- **Contact Page** — sends emails to pillalokesh3@gmail.com
+- **Profile Page** with order history
+- **Wishlist System**
+- **Dark Mode** support
+- **Fully Responsive** mobile-first design
+- **Framer Motion** animations throughout
+- **Tailwind CSS** styling
 
-**Application Layer:**
-- ECS Fargate cluster
-- Frontend: React app (Nginx) - 2 tasks
-- Backend: Node.js API - 2 tasks
-- Application Load Balancer with path-based routing
+### Backend
+- **JWT Authentication** (signup, login, logout)
+- **MongoDB** database with Mongoose
+- **Nodemailer** integration for contact form
+- **Order Management** API
+- **Protected Routes** with middleware
+- **Rate Limiting** and security headers
+- **RESTful API** architecture
 
-**Database Layer:**
-- RDS MySQL (db.t3.micro)
-- Multi-AZ enabled
-- 20GB storage
-- Private subnet only
+---
 
-**Security:**
-- 3 Security Groups (ALB, ECS, RDS)
-- SSL/TLS via ACM
-- HTTPS enforced
-- No public database access
+## 📁 Project Structure
 
-**DNS & SSL:**
-- Route53 hosted zone
-- ACM SSL certificate
-- HTTPS redirect from HTTP
+```
+final-project/
+├── frontend/
+│   ├── public/
+│   │   └── index.html
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Navbar.js
+│   │   │   └── JuiceCard.js
+│   │   ├── context/
+│   │   │   └── AppContext.js
+│   │   ├── data/
+│   │   │   └── juices.js
+│   │   ├── pages/
+│   │   │   ├── LandingPage.js
+│   │   │   ├── HomePage.js
+│   │   │   ├── CategoryPage.js
+│   │   │   ├── JuiceDetailPage.js
+│   │   │   ├── CartPage.js
+│   │   │   ├── ContactPage.js
+│   │   │   ├── MenuPage.js
+│   │   │   ├── WishlistPage.js
+│   │   │   ├── ProfilePage.js
+│   │   │   └── OffersPage.js
+│   │   ├── App.js
+│   │   ├── index.js
+│   │   └── index.css
+│   ├── package.json
+│   ├── tailwind.config.js
+│   ├── nginx.conf
+│   └── Dockerfile
+├── backend/
+│   ├── config/
+│   │   └── database.js
+│   ├── models/
+│   │   ├── User.js
+│   │   └── Order.js
+│   ├── middleware/
+│   │   └── auth.js
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── contact.js
+│   │   └── orders.js
+│   ├── server.js
+│   ├── package.json
+│   ├── .env.example
+│   └── Dockerfile
+└── README.md
+```
 
-## Prerequisites
+---
 
-- AWS Account
-- Terraform >= 1.0
-- AWS CLI configured
-- Domain: lokeshwaffle.in
+## 🛠️ Tech Stack
 
-## Deployment Steps
+### Frontend
+- React 18
+- React Router DOM
+- Tailwind CSS
+- Framer Motion
+- Axios
+- React Hot Toast
+- Lucide React Icons
+
+### Backend
+- Node.js
+- Express.js
+- MongoDB + Mongoose
+- JWT Authentication
+- Bcrypt.js
+- Nodemailer
+- Helmet (security)
+- Express Rate Limit
+- Morgan (logging)
+
+### DevOps
+- Docker
+- Nginx
+- AWS ECS Fargate
+- AWS ECR
+- AWS RDS (optional)
+- GitHub Actions CI/CD
+
+---
+
+## 🚀 Local Development Setup
+
+### Prerequisites
+- Node.js 18+
+- MongoDB (local or Atlas)
+- Git
 
 ### 1. Clone Repository
-
 ```bash
-git clone <repository-url>
+git clone <your-repo-url>
 cd final-project
 ```
 
-### 2. Configure Variables
-
+### 2. Backend Setup
 ```bash
-cp terraform.tfvars.example terraform.tfvars
+cd backend
+npm install
+cp .env.example .env
+# Edit .env with your MongoDB URI and email credentials
+npm start
+# Backend runs on http://localhost:5000
 ```
 
-Edit `terraform.tfvars` and set your database password:
-
-```hcl
-db_password = "YourSecurePassword123!"
-```
-
-### 3. Initialize Terraform
-
+### 3. Frontend Setup
 ```bash
-terraform init
+cd frontend
+npm install
+npm start
+# Frontend runs on http://localhost:3000
 ```
 
-### 4. Plan Infrastructure
+### 4. Environment Variables
 
+**Backend `.env`:**
+```env
+PORT=5000
+MONGO_URI=mongodb://localhost:27017/amrutha-juice
+JWT_SECRET=your_secret_key
+CLIENT_URL=http://localhost:3000
+SMTP_USER=pillalokesh3@gmail.com
+SMTP_PASS=your_gmail_app_password
+```
+
+**Gmail App Password:**
+1. Go to Google Account → Security
+2. Enable 2-Step Verification
+3. Generate App Password
+4. Use in `SMTP_PASS`
+
+---
+
+## 📦 Production Deployment
+
+### Docker Build
 ```bash
-terraform plan
+# Frontend
+cd frontend
+docker build -t amrutha-frontend .
+
+# Backend
+cd backend
+docker build -t amrutha-backend .
 ```
 
-### 5. Deploy Infrastructure
+### AWS ECS Deployment
+Already configured with GitHub Actions in `.github/workflows/deploy.yml`
 
-```bash
-terraform apply
-```
+Push to `main` branch triggers automatic deployment to AWS ECS.
 
-Type `yes` when prompted.
+---
 
-### 6. Update Domain Nameservers
+## 🎨 Features Breakdown
 
-After deployment, update your domain registrar with Route53 nameservers:
+### Authentication System
+- JWT-based auth with httpOnly cookies
+- Signup with name, email, password
+- Login with email, password
+- Protected routes
+- Auto-redirect if not logged in
 
-```bash
-terraform output route53_nameservers
-```
+### Cart System
+- Add to cart with customization (size, sugar, ice)
+- Quantity controls
+- Coupon system (AMRUTHA20, B2G1FREE, WEEKEND30)
+- Free delivery above ₹199
+- Order confirmation with animated popup
 
-### 7. Build and Push Docker Images
+### Contact Form
+- Sends email to `pillalokesh3@gmail.com`
+- Auto-reply to user
+- Beautiful email templates
+- Form validation
 
-**Frontend:**
-```bash
-aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.ap-south-1.amazonaws.com
+### Category Pages
+Each of 12 categories has:
+- Unique gradient theme
+- Custom animations
+- Filter & sort options
+- Responsive grid layout
 
-docker build -t lokesh-frontend ./frontend
-docker tag lokesh-frontend:latest <ecr-frontend-url>:latest
-docker push <ecr-frontend-url>:latest
-```
+### Juice Detail Page
+- Large product images
+- Size selection (S, M, L, XL)
+- Sugar level (no sugar, less, normal, extra)
+- Ice level (no ice, less, normal, extra)
+- Quantity selector
+- Add to cart
+- Related products
 
-**Backend:**
-```bash
-docker build -t lokesh-backend ./backend
-docker tag lokesh-backend:latest <ecr-backend-url>:latest
-docker push <ecr-backend-url>:latest
-```
+---
 
-### 8. Update ECS Services
+## 🔗 API Endpoints
 
-```bash
-aws ecs update-service --cluster lokesh-cluster --service lokesh-frontend-service --force-new-deployment
-aws ecs update-service --cluster lokesh-cluster --service lokesh-backend-service --force-new-deployment
-```
+### Auth
+- `POST /api/auth/signup` — Register user
+- `POST /api/auth/login` — Login user
+- `GET /api/auth/me` — Get current user
+- `POST /api/auth/logout` — Logout
 
-## CI/CD Setup (GitHub Actions)
+### Contact
+- `POST /api/contact` — Send contact email
 
-### 1. Create OIDC Provider in AWS
+### Orders
+- `POST /api/orders` — Create order
+- `GET /api/orders/my` — Get user orders
+- `GET /api/orders/:id` — Get single order
 
-```bash
-aws iam create-open-id-connect-provider \
-  --url https://token.actions.githubusercontent.com \
-  --client-id-list sts.amazonaws.com \
-  --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
-```
+---
 
-### 2. Create IAM Role for GitHub Actions
+## 🎯 Key Pages
 
-Create role with trust policy:
+| Page | Route | Description |
+|------|-------|-------------|
+| Landing | `/` | Login/Signup with animations |
+| Home | `/home` | Hero, categories, trending, offers |
+| Menu | `/menu` | All juices with search & filter |
+| Category | `/category/:id` | Category-specific juices |
+| Juice Detail | `/juice/:id` | Full product details |
+| Cart | `/cart` | Cart items & checkout |
+| Wishlist | `/wishlist` | Saved juices |
+| Contact | `/contact` | Contact form |
+| Profile | `/profile` | User profile & orders |
+| Offers | `/offers` | All coupons & deals |
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "arn:aws:iam::<account-id>:oidc-provider/token.actions.githubusercontent.com"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:<github-username>/<repo-name>:*"
-        }
-      }
-    }
-  ]
-}
-```
+---
 
-Attach policies:
-- AmazonEC2ContainerRegistryPowerUser
-- AmazonECS_FullAccess
+## 🎨 Design System
 
-### 3. Add GitHub Secret
+### Colors
+- Primary: Orange (#f97316)
+- Secondary: Pink (#ec4899)
+- Accent: Purple (#a855f7)
+- Background: Dark (#0a0a0a)
 
-Add `AWS_ROLE_ARN` to GitHub repository secrets with the IAM role ARN.
+### Animations
+- Framer Motion page transitions
+- Floating fruit animations
+- Hover effects on cards
+- Loading skeletons
+- Smooth scrolling
 
-### 4. Push to Main Branch
+### Typography
+- Display: Poppins
+- Body: Inter
 
-```bash
-git add .
-git commit -m "Deploy infrastructure"
-git push origin main
-```
+---
 
-## Architecture Diagram
+## 📧 Contact Email Setup
 
-```
-Internet
-    |
-    v
-[Route53] --> [ACM Certificate]
-    |
-    v
-[Application Load Balancer]
-    |
-    +-- / --> [Frontend Target Group]
-    |            |
-    |            v
-    |         [ECS Fargate - Frontend x2]
-    |
-    +-- /api/* --> [Backend Target Group]
-                      |
-                      v
-                   [ECS Fargate - Backend x2]
-                      |
-                      v
-                   [RDS MySQL - Multi-AZ]
-```
+Contact form sends emails to: **pillalokesh3@gmail.com**
 
-## Outputs
+Uses Nodemailer with Gmail SMTP.
 
-After deployment, retrieve important values:
+**Setup:**
+1. Enable 2FA on Gmail
+2. Generate App Password
+3. Add to `.env` as `SMTP_PASS`
 
-```bash
-terraform output alb_dns_name
-terraform output ecr_frontend_repository_url
-terraform output ecr_backend_repository_url
-terraform output rds_endpoint
-```
+---
 
-## Security Features
+## 🚀 Deployment Status
 
-- Private subnets for application and database
-- Security groups with least privilege
-- No hardcoded credentials
-- IAM roles for ECS tasks
-- SSL/TLS encryption
-- Multi-AZ for high availability
-- HTTPS enforced
+- ✅ Frontend: React SPA
+- ✅ Backend: Node.js API
+- ✅ Database: MongoDB
+- ✅ Email: Nodemailer
+- ✅ Docker: Multi-stage builds
+- ✅ CI/CD: GitHub Actions
+- ✅ AWS: ECS Fargate deployment
 
-## Monitoring
+---
 
-- CloudWatch Container Insights enabled
-- ECS task logs in CloudWatch
-- ALB access logs
-- RDS automated backups (7 days retention)
+## 📝 Future Enhancements
 
-## Cost Optimization
+- [ ] Payment gateway integration (Razorpay/Stripe)
+- [ ] Real-time order tracking with Socket.io
+- [ ] Admin dashboard
+- [ ] Push notifications
+- [ ] Mobile app (React Native)
+- [ ] AI chatbot assistant
+- [ ] Loyalty points system
+- [ ] Subscription plans
 
-- NAT Gateway: ~$32/month
-- ALB: ~$16/month
-- ECS Fargate: ~$30/month (4 tasks)
-- RDS db.t3.micro Multi-AZ: ~$30/month
-- Route53: ~$0.50/month
+---
 
-**Estimated Total: ~$110/month**
+## 👨‍💻 Developer
 
-## Cleanup
+**Lokesh Pilla**
+- Email: pillalokesh3@gmail.com
+- GitHub: [Your GitHub]
 
-To destroy all resources:
+---
 
-```bash
-terraform destroy
-```
+## 📄 License
 
-Type `yes` when prompted.
+MIT License — Free to use for personal and commercial projects.
 
-## Troubleshooting
+---
 
-**ECS tasks not starting:**
-- Check CloudWatch logs: `/ecs/lokesh-cluster`
-- Verify ECR images exist
-- Check security group rules
+## 🙏 Acknowledgments
 
-**Database connection issues:**
-- Verify RDS endpoint in backend environment variables
-- Check RDS security group allows ECS security group
-- Ensure RDS is in private subnets
+- Unsplash for juice images
+- Lucide for icons
+- Tailwind CSS for styling
+- Framer Motion for animations
 
-**SSL certificate not validating:**
-- Verify DNS records in Route53
-- Wait 5-10 minutes for DNS propagation
-- Check ACM certificate status
+---
 
-## Support
-
-For issues or questions, contact the DevOps team.
+**Built with ❤️ for Amrutha Juice 🥤**
