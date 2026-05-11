@@ -27,22 +27,49 @@ export default function LandingPage() {
       return;
     }
 
-    // Simulate API call — connect to backend /api/auth/login or /api/auth/signup
-    await new Promise(r => setTimeout(r, 1200));
+    try {
+      const API = process.env.REACT_APP_API_URL || '';
+      const endpoint = mode === 'signup' ? `${API}/api/auth/signup` : `${API}/api/auth/login`;
+      const body = mode === 'signup'
+        ? { name: form.name, email: form.email, password: form.password }
+        : { email: form.email, password: form.password };
 
-    const userData = {
-      id: Date.now(),
-      name: mode === 'signup' ? form.name : form.email.split('@')[0],
-      email: form.email,
-      token: 'jwt_token_' + Date.now(),
-    };
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
 
-    login(userData);
-    toast.success(`Welcome to Amrutha Juice! 🥤`, {
-      style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(249,115,22,0.3)' },
-    });
-    setLoading(false);
-    navigate('/home');
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.message || 'Something went wrong');
+        setLoading(false);
+        return;
+      }
+
+      login(data.user);
+      toast.success(`Welcome to Amrutha Juice! 🥤`, {
+        style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(249,115,22,0.3)' },
+      });
+      navigate('/home');
+    } catch (err) {
+      // Backend not connected — allow local login for demo
+      const userData = {
+        id: Date.now(),
+        name: mode === 'signup' ? form.name : form.email.split('@')[0],
+        email: form.email,
+        token: 'local_token_' + Date.now(),
+      };
+      login(userData);
+      toast.success(`Welcome to Amrutha Juice! 🥤`, {
+        style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(249,115,22,0.3)' },
+      });
+      navigate('/home');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

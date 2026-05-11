@@ -28,7 +28,11 @@ app.use('/api/', limiter);
 
 // CORS
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: [
+    process.env.CLIENT_URL || 'http://localhost:3000',
+    'https://lokeshwaffle.in',
+    'https://www.lokeshwaffle.in'
+  ],
   credentials: true
 }));
 
