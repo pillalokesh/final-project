@@ -1,0 +1,129 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:ap-south-1:385168913795:task-definition/lokesh-backend:16",
+    "containerDefinitions": [
+        {
+            "name": "backend",
+            "image": "385168913795.dkr.ecr.ap-south-1.amazonaws.com/lokesh-backend:6830ebdfff7758c3e0d2c30cad2a793d76d491ae",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "containerPort": 5000,
+                    "hostPort": 5000,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "SMTP_PASS",
+                    "value": ""
+                },
+                {
+                    "name": "PORT",
+                    "value": "5000"
+                },
+                {
+                    "name": "DB_PORT",
+                    "value": "3306"
+                },
+                {
+                    "name": "DB_USER",
+                    "value": "admin"
+                },
+                {
+                    "name": "MONGO_URI",
+                    "value": ""
+                },
+                {
+                    "name": "CLIENT_URL",
+                    "value": "https://lokeshwaffle.in"
+                },
+                {
+                    "name": "SMTP_USER",
+                    "value": "pillalokesh3@gmail.com"
+                },
+                {
+                    "name": "DB_NAME",
+                    "value": "lokeshdb"
+                },
+                {
+                    "name": "DB_HOST",
+                    "value": "lokesh-db.c5oagiayyd64.ap-south-1.rds.amazonaws.com"
+                },
+                {
+                    "name": "FROM_EMAIL",
+                    "value": "pillalokesh3@gmail.com"
+                },
+                {
+                    "name": "JWT_SECRET",
+                    "value": "amrutha_juice_secret_2025"
+                },
+                {
+                    "name": "NODE_ENV",
+                    "value": "production"
+                },
+                {
+                    "name": "DB_PASSWORD",
+                    "value": "YourDBPassword123"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/lokesh-cluster",
+                    "awslogs-region": "ap-south-1",
+                    "awslogs-stream-prefix": "backend"
+                }
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "lokesh-backend",
+    "taskRoleArn": "arn:aws:iam::385168913795:role/lokesh-ecs-task-role",
+    "executionRoleArn": "arn:aws:iam::385168913795:role/lokesh-ecs-task-execution-role",
+    "networkMode": "awsvpc",
+    "revision": 16,
+    "volumes": [],
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "MANAGED_INSTANCES",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "256",
+    "memory": "512",
+    "registeredAt": "2026-05-11T14:35:35.678000+05:30",
+    "registeredBy": "arn:aws:sts::385168913795:assumed-role/lokesh-github-actions-role/GitHubActionsSession"
+}
