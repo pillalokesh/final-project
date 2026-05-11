@@ -19,7 +19,7 @@ env:
 permissions:
   id-token: write
   contents: read
-  security-events: write   # for uploading SARIF results
+  security-events: write
 
 jobs:
 
@@ -29,12 +29,11 @@ jobs:
   sonarqube:
     name: 🔍 SonarQube Code Analysis
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history for better analysis
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -91,7 +90,6 @@ jobs:
   dependency-scan:
     name: 🔐 Dependency Security Scan
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -103,17 +101,13 @@ jobs:
 
       - name: Frontend — npm audit
         run: |
-          cd frontend
-          npm install
-          echo "====== FRONTEND DEPENDENCY AUDIT ======"
+          cd frontend && npm install
           npm audit --audit-level=high --json > npm-audit-frontend.json || true
           npm audit --audit-level=high || true
 
       - name: Backend — npm audit
         run: |
-          cd backend
-          npm install
-          echo "====== BACKEND DEPENDENCY AUDIT ======"
+          cd backend && npm install
           npm audit --audit-level=high --json > npm-audit-backend.json || true
           npm audit --audit-level=high || true
 
@@ -202,14 +196,12 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Pull images first so Trivy can scan locally
       - name: Pull frontend image
         run: docker pull ${{ needs.build.outputs.frontend-image }}
 
       - name: Pull backend image
         run: docker pull ${{ needs.build.outputs.backend-image }}
 
-      # Scan filesystem for secrets and misconfigs
       - name: Trivy — Filesystem Scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -221,7 +213,6 @@ jobs:
           severity: 'CRITICAL,HIGH'
           trivy-config: ''
 
-      # Scan frontend Docker image
       - name: Trivy — Frontend Image Scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -234,7 +225,6 @@ jobs:
           ignore-unfixed: true
           trivy-config: ''
 
-      # Scan backend Docker image
       - name: Trivy — Backend Image Scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -247,7 +237,6 @@ jobs:
           ignore-unfixed: true
           trivy-config: ''
 
-      # Table report for logs
       - name: Trivy — Backend Image Report (table)
         uses: aquasecurity/trivy-action@master
         with:
@@ -259,7 +248,6 @@ jobs:
           ignore-unfixed: true
           trivy-config: ''
 
-      # Upload SARIF to GitHub Security tab
       - name: Upload Trivy Frontend SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
@@ -330,27 +318,41 @@ jobs:
             --query taskDefinition > backend-task-def.json
 
       - name: Inject backend environment variables
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
-          cat backend-task-def.json | python3 -c "
-          import json, sys
-          td = json.load(sys.stdin)
+          python3 - <<'EOF'
+          import json, os
+          with open('backend-task-def.json') as f:
+              td = json.load(f)
           updates = {
-            'PORT': '5000',
-            'NODE_ENV': 'production',
-            'MONGO_URI': '${{ secrets.MONGO_URI }}',
-            'JWT_SECRET': '${{ secrets.JWT_SECRET }}',
-            'CLIENT_URL': 'https://lokeshwaffle.in',
-            'SMTP_USER': '${{ secrets.SMTP_USER }}',
-            'SMTP_PASS': '${{ secrets.SMTP_PASS }}',
-            'FROM_EMAIL': '${{ secrets.SMTP_USER }}'
+              'PORT': '5000',
+              'NODE_ENV': 'production',
+              'DB_HOST': os.environ['DB_HOST'],
+              'DB_USER': os.environ['DB_USER'],
+              'DB_PASSWORD': os.environ['DB_PASSWORD'],
+              'DB_NAME': os.environ.get('DB_NAME', 'lokeshdb'),
+              'DB_PORT': '3306',
+              'JWT_SECRET': os.environ['JWT_SECRET'],
+              'CLIENT_URL': 'https://lokeshwaffle.in',
+              'SMTP_USER': os.environ['SMTP_USER'],
+              'SMTP_PASS': os.environ['SMTP_PASS'],
+              'FROM_EMAIL': os.environ['SMTP_USER'],
           }
           env = td['containerDefinitions'][0].get('environment', [])
           env = [e for e in env if e['name'] not in updates]
           env += [{'name': k, 'value': v} for k, v in updates.items()]
           td['containerDefinitions'][0]['environment'] = env
-          print(json.dumps(td))
-          " > backend-task-def-updated.json
-          mv backend-task-def-updated.json backend-task-def.json
+          with open('backend-task-def.json', 'w') as f:
+              json.dump(td, f)
+          print('Env vars injected successfully')
+          EOF
 
       - name: Update frontend task definition with new image
         id: frontend-task-def
@@ -384,15 +386,12 @@ jobs:
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: false
 
-      - name: ✅ Deployment Summary
+      - name: Deployment Summary
         run: |
           echo "================================================"
-          echo "  ✅ AMRUTHA JUICE — DEPLOYMENT COMPLETE!"
+          echo "  AMRUTHA JUICE — DEPLOYMENT COMPLETE!"
           echo "================================================"
-          echo "  🌐 Website  : https://lokeshwaffle.in"
-          echo "  🔧 API      : https://lokeshwaffle.in/api/health"
-          echo "  📦 Frontend : ${{ steps.image-tags.outputs.frontend }}"
-          echo "  📦 Backend  : ${{ steps.image-tags.outputs.backend }}"
-          echo "  🔍 SonarQube: ${{ secrets.SONAR_HOST_URL }}"
-          echo "  🛡️  Trivy   : GitHub Security tab"
+          echo "  Website : https://lokeshwaffle.in"
+          echo "  API     : https://lokeshwaffle.in/api/health"
+          echo "  DB      : MySQL RDS"
           echo "================================================"

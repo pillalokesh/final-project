@@ -1,23 +1,24 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const { protect } = require('../middleware/auth');
+const { pool } = require('../config/database');
 
-const signToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET || 'amrutha_juice_secret', {
-  expiresIn: process.env.JWT_EXPIRE || '7d'
-});
+const signToken = (id) => jwt.sign(
+  { id },
+  process.env.JWT_SECRET || 'amrutha_juice_secret',
+  { expiresIn: '7d' }
+);
 
 const sendToken = (user, statusCode, res) => {
-  const token = signToken(user._id);
-  const cookieOptions = {
+  const token = signToken(user.id);
+  res.cookie('token', token, {
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict'
-  };
-  res.cookie('token', token, cookieOptions);
-  user.password = undefined;
+  });
+  delete user.password;
   res.status(statusCode).json({ success: true, token, user });
 };
 
@@ -28,14 +29,30 @@ router.post('/signup', async (req, res) => {
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
-    const existing = await User.findOne({ email });
-    if (existing) {
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    // Check existing user
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existing.length > 0) {
       return res.status(409).json({ success: false, message: 'Email already registered' });
     }
-    const user = await User.create({ name, email, password });
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Insert user
+    const [result] = await pool.query(
+      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
+      [name, email, hashedPassword]
+    );
+
+    const user = { id: result.insertId, name, email, role: 'user' };
     sendToken(user, 201, res);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Signup error:', error.message);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
@@ -46,19 +63,49 @@ router.post('/login', async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
-    const user = await User.findOne({ email }).select('+password');
-    if (!user || !(await user.comparePassword(password))) {
+
+    // Find user
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (rows.length === 0) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
+
+    const user = rows[0];
+
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
+
     sendToken(user, 200, res);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Login error:', error.message);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
 // GET /api/auth/me
-router.get('/me', protect, (req, res) => {
-  res.json({ success: true, user: req.user });
+router.get('/me', async (req, res) => {
+  try {
+    let token;
+    if (req.headers.authorization?.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies.token) {
+      token = req.cookies.token;
+    }
+
+    if (!token) return res.status(401).json({ success: false, message: 'Not authorized' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'amrutha_juice_secret');
+    const [rows] = await pool.query('SELECT id, name, email, role, created_at FROM users WHERE id = ?', [decoded.id]);
+
+    if (rows.length === 0) return res.status(401).json({ success: false, message: 'User not found' });
+
+    res.json({ success: true, user: rows[0] });
+  } catch (error) {
+    res.status(401).json({ success: false, message: 'Not authorized' });
+  }
 });
 
 // POST /api/auth/logout

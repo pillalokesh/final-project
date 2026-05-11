@@ -5,26 +5,23 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
-const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
-const connectDB = require('./config/database');
+const { initDB } = require('./config/database');
 
 const app = express();
 
-// Connect Database
-connectDB();
+// Init DB tables
+initDB();
 
-// Security Middleware
+// Security
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(mongoSanitize());
 
 // Rate Limiting
-const limiter = rateLimit({
+app.use('/api/', rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
   message: { success: false, message: 'Too many requests' }
-});
-app.use('/api/', limiter);
+}));
 
 // CORS
 app.use(cors({
@@ -54,6 +51,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     message: 'Amrutha Juice API is running',
     version: '2.0.0',
+    db: 'MySQL RDS',
     timestamp: new Date().toISOString()
   });
 });
@@ -63,24 +61,23 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/contact', require('./routes/contact'));
 app.use('/api/orders', require('./routes/orders'));
 
-// 404 Handler
+// 404
 app.use('*', (req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
 });
 
-// Global Error Handler
+// Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.statusCode || 500).json({
     success: false,
-    message: err.message || 'Server Error',
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+    message: err.message || 'Server Error'
   });
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Amrutha Juice Backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  console.log(`Amrutha Juice Backend running on port ${PORT}`);
 });
 
 module.exports = app;
