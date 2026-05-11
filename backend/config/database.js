@@ -16,7 +16,7 @@ const pool = mysql.createPool({
 const initDB = async () => {
   try {
     const conn = await pool.getConnection();
-    console.log('✅ MySQL RDS Connected:', process.env.DB_HOST);
+    console.log('MySQL RDS Connected:', process.env.DB_HOST);
 
     // Create users table
     await conn.query(`
@@ -51,9 +51,9 @@ const initDB = async () => {
     `);
 
     conn.release();
-    console.log('✅ Database tables ready');
+    console.log('Database tables ready');
   } catch (error) {
-    console.error('❌ DB Init Error:', error.message);
+    console.error('DB Init Error:', error.message);
   }
 };
 
